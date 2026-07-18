@@ -288,8 +288,9 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-app.listen(port, () => {
+app.listen(Number(port), '0.0.0.0', () => {
   console.log(`✅ GlobalSwipe API v1.0.0 running on port ${port}`);
+  console.log(`   LAN: http://0.0.0.0:${port} (reachable via your Wi‑Fi IP)`);
   console.log(`   POST /api/price`);
   console.log(`   POST /api/orders`);
   console.log(`   POST /api/orders/:id/book`);
