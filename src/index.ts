@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { OrderService } from './services/orderService';
+import { PaymentMethodService } from './services/paymentMethodService';
 import { PriceRequest, OrderRequest } from './types';
 import pool from './config/database';
 import { register, orderCounter, orderAmount, ledgerTxCounter, apiLatency } from './metrics';
@@ -14,6 +15,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 const orderService = new OrderService();
+const paymentMethodService = new PaymentMethodService();
 
 app.use(helmet());
 app.use(cors());
@@ -207,6 +209,56 @@ app.get('/api/orders/:id', async (req, res) => {
   }
 });
 
+// 6. GET /api/payment-methods
+app.get('/api/payment-methods', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { corridorId } = req.query;
+
+    let methods;
+    if (corridorId) {
+      if (!isValidUuid(corridorId as string)) {
+        return res.status(400).json({ error: 'Invalid corridor ID format' });
+      }
+      methods = await paymentMethodService.getPaymentMethodsForCorridor(corridorId as string);
+    } else {
+      methods = await paymentMethodService.getAllPaymentMethods();
+    }
+
+    apiLatency.observe({ endpoint: '/payment-methods', method: 'GET' }, (Date.now() - startTime) / 1000);
+    res.json({ methods });
+  } catch (error: unknown) {
+    apiLatency.observe({ endpoint: '/payment-methods', method: 'GET' }, (Date.now() - startTime) / 1000);
+    console.error('Payment methods error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 7. GET /api/payment-methods/:id
+app.get('/api/payment-methods/:id', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { id } = req.params;
+
+    if (!id || !isValidUuid(id)) {
+      return res.status(400).json({ error: 'Invalid payment method ID format' });
+    }
+
+    const method = await paymentMethodService.getPaymentMethodById(id);
+
+    if (!method) {
+      return res.status(404).json({ error: 'Payment method not found' });
+    }
+
+    apiLatency.observe({ endpoint: '/payment-methods/:id', method: 'GET' }, (Date.now() - startTime) / 1000);
+    res.json(method);
+  } catch (error: unknown) {
+    apiLatency.observe({ endpoint: '/payment-methods/:id', method: 'GET' }, (Date.now() - startTime) / 1000);
+    console.error('Payment method error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Public: metrics + health
 app.get('/metrics', async (_req, res) => {
   try {
@@ -243,6 +295,8 @@ app.listen(port, () => {
   console.log(`   POST /api/orders/:id/book`);
   console.log(`   GET  /api/orders/:id/balance-delta`);
   console.log(`   GET  /api/orders/:id`);
+  console.log(`   GET  /api/payment-methods`);
+  console.log(`   GET  /api/payment-methods/:id`);
   console.log(`   GET  /metrics`);
   console.log(`   GET  /health`);
 });

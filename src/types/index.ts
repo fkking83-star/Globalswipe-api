@@ -52,3 +52,21 @@ export interface BalanceDeltaResponse {
     deltaMajor: number;
   }>;
 }
+
+export interface PaymentMethod {
+  id: string;
+  methodCode: string;
+  displayName: string;
+  surchargePercentage: number;
+  isActive: boolean;
+}
+
+export interface PaymentMethodsResponse {
+  methods: PaymentMethod[];
+}
+
+export interface PaymentMethodRequest {
+  methodCode: string;
+  displayName: string;
+  surchargePercentage: number;
+}
